@@ -37,6 +37,7 @@ import (
 	"github.com/spf13/cobra"
 
 	// Load .env
+	"github.com/charmbracelet/huh"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -51,6 +52,16 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to initiate login", "error", err)
 		}
+		var otp string
+		huh.NewInput().
+			Title("One-time passphrase").
+			Value(&otp).
+			Run()
+		err = duckduckgoapi.LoginWithOtp(internal.Viper.GetString("duck-address-username"), otp)
+		if err != nil {
+			log.Fatal("Failed to login with OTP", "error", err)
+		}
+		log.Info("Successfully logged in")
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		utils.SetupLogger(internal.Viper.GetString("log-level"))
