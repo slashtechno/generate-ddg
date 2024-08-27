@@ -32,9 +32,11 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
+	"github.com/slashtechno/generate-ddg/pkg/duckduckgoapi"
 	"github.com/slashtechno/generate-ddg/pkg/utils"
 	"github.com/spf13/cobra"
 
+	// Load .env
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -45,6 +47,10 @@ var rootCmd = &cobra.Command{
 	Use:   "generate-ddg",
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
+		err := duckduckgoapi.InitiateLogin(internal.Viper.GetString("duck-address-username"))
+		if err != nil {
+			log.Fatal("Failed to initiate login", "error", err)
+		}
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		utils.SetupLogger(internal.Viper.GetString("log-level"))
@@ -70,17 +76,12 @@ func init() {
 	internal.Viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
 	internal.Viper.SetDefault("log-level", "info")
 
-	rootCmd.PersistentFlags().StringP("duck-address", "d", "", "DuckDuckGo email address")
-	internal.Viper.BindPFlag("duck-address", rootCmd.PersistentFlags().Lookup("duck-address"))
+	rootCmd.PersistentFlags().StringP("duck-address-username", "d", "", "The username in your DuckDuckGo email address (<username>@duck.com)")
+	internal.Viper.BindPFlag("duck-address-username", rootCmd.PersistentFlags().Lookup("duck-address=username"))
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-
-	// Load .env file
-	// if err := godotenv.Load(); err != nil {
-	// 	log.Fatal("Error loading .env file:", err)
-	// }
 
 	// If the user specifies a config file, use that
 	// Otherwise use $XDG_CONFIG_HOME/generate-ddg/config.yaml
