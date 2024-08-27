@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run (no args)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [],
+            "console": "integratedTerminal"
+        },
+    ],
+        // "inputs": [
+        // {
+        //     "id": "",
+        //     "type": "pickString",
+        //     "description": "",
+        //     "options": ["...", "...", "..."],
+        //     "default": "..."
+        // },
+    // ]
+}
