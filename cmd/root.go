@@ -22,23 +22,18 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"io/fs"
 	"os"
-	"strings"
 
 	// "github.com/joho/godotenv"
 
 	"github.com/slashtechno/generate-ddg/internal"
 
-	"github.com/adrg/xdg"
 	"github.com/charmbracelet/log"
 	"github.com/slashtechno/generate-ddg/pkg/duckduckgoapi"
 	"github.com/slashtechno/generate-ddg/pkg/utils"
 	"github.com/spf13/cobra"
 
-	// Load .env
 	"github.com/charmbracelet/huh"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 var cfgFile string
@@ -81,9 +76,11 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
 
-	rootCmd.PersistentFlags().String("log-level", "", "log level")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
+
+	rootCmd.PersistentFlags().String("log-level", "", "Log level")
 	internal.Viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
 	internal.Viper.SetDefault("log-level", "info")
 
@@ -94,37 +91,16 @@ func init() {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 
-	// If the user specifies a config file, use that
-	// Otherwise use $XDG_CONFIG_HOME/generate-ddg/config.yaml
-	if cfgFile != "" {
-		// Use config file from the flag.
-		internal.Viper.SetConfigFile(cfgFile)
-	} else {
-		configPath, err := xdg.ConfigFile("generate-ddg/config.yaml")
-		if err != nil {
-			log.Fatal("Failed to get config file path:", "error", err)
-		}
-		internal.Viper.SetConfigFile(configPath)
-	}
-
-	// Read in environment variables that match
-	internal.Viper.AutomaticEnv()
-	internal.Viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-
-	usedCfgFile := internal.Viper.ConfigFileUsed()
-
-	// If a config file is found, read it in.
-	if err := internal.Viper.ReadInConfig(); err == nil {
-		log.Info("Using config file:", internal.Viper.ConfigFileUsed())
-	} else {
-		if _, ok := err.(*fs.PathError); ok {
-			log.Debug("Configuration file not found, creating a new one", "file", usedCfgFile)
-			if err := internal.Viper.WriteConfigAs(usedCfgFile); err != nil {
-				log.Fatal("Failed to write configuration file:", "error", err)
-			}
-			log.Fatal("Failed to read config file. Created a config file with default values. Please edit the file and run the command again.", "path", usedCfgFile)
-		}
-
-		log.Fatal("Failed to read configurationfile:", "error", err)
-	}
+	utils.LoadConfig(
+		internal.Viper,
+		cfgFile,
+		"generate-ddg/config.yaml",
+		log.Default(),
+	)
+	utils.LoadConfig(
+		internal.SecretViper,
+		cfgFile,
+		"generate-ddg/secrets.yaml",
+		log.Default(),
+	)
 }
