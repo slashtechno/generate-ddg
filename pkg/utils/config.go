@@ -15,13 +15,18 @@ import (
 // The config file is read from the userPassedConfigPath if it is not empty, otherwise it is read from the XDG_CONFIG_HOME/<configRelativeToXdgConfig> path.
 // If the config file is not found, a new one is created with default values and an error is returned.
 // If the config file is found, it is read in and the path is logged (if charmLogger is not nil).
-func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeToXdgConfig string, charmLogger *log.Logger) error {
+// If noFile is true, the config file is not read in and only environment variables are used.
+func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeToXdgConfig string, charmLogger *log.Logger, noFile bool) error {
 
 	err := godotenv.Load()
 	if err != nil {
 		if charmLogger != nil {
 			charmLogger.Warn("Failed to load .env file", "error", err)
 		}
+	}
+
+	if noFile {
+		return nil
 	}
 
 	// If the user specifies a config file, use that
@@ -47,7 +52,9 @@ func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeTo
 	// If a config file is found, read it in.
 	if err := passedViper.ReadInConfig(); err == nil {
 		if charmLogger != nil {
-			charmLogger.Info("Using config file:", "path", passedViper.ConfigFileUsed())
+			// TODO: Allow "config file" to be replaced with a parameter
+			// That way it can be called a secrets file or something else, depending on the use case
+			charmLogger.Info("Loaded file", "path", passedViper.ConfigFileUsed())
 		}
 	} else {
 		if _, ok := err.(*fs.PathError); ok {

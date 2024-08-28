@@ -9,8 +9,61 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func InitiateLogin(username string) error {
+func GetEmail(accessToken string) (string, error) {
 
+	type emailResponse struct {
+		Address string `json:"address"`
+	}
+
+	resp, err := resty.New().R().
+		SetHeader("User-Agent", UserAgent).
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", accessToken)).
+		SetResult(&emailResponse{}).
+		Post(fmt.Sprintf("%s/email/addresses", Endpoint))
+	if err != nil {
+		return "", err
+	}
+
+	log.Debug("GetEmail", "response", resp.String())
+	if resp.Error() != nil {
+		return "", fmt.Errorf("error: %s", resp)
+	}
+
+	return resp.Result().(*emailResponse).Address, nil
+}
+
+func GetAccessToken(refreshToken string) (string, error) {
+	type accessTokenResponse struct {
+		// Invites []any `json:"invites"`
+		// Stats struct {
+		// AddressesGenerated int `json:"addresses_generated"`
+		// } `json:"stats"`
+		User struct {
+			AccessToken string `json:"access_token"`
+			// Email       string `json:"email"`
+			// Username    string `json:"username"`
+		} `json:"user"`
+	}
+
+	resp, err := resty.New().R().
+		SetHeader("User-Agent", UserAgent).
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", refreshToken)).
+		SetResult(&accessTokenResponse{}).
+		Get(fmt.Sprintf("%s/email/dashboard", Endpoint))
+	if err != nil {
+		return "", err
+	}
+
+	log.Debug("GetAccessToken", "response", resp.String())
+	if resp.Error() != nil {
+		return "", fmt.Errorf("error: %s", resp)
+	}
+
+	return resp.Result().(*accessTokenResponse).User.AccessToken, nil
+}
+
+func InitiateLogin(username string) error {
+	// TODO: Handle the "rc" error better
 	type loginLinkResponse struct {
 		C struct {
 			Ar    int    `json:"ar"`
@@ -32,12 +85,12 @@ func InitiateLogin(username string) error {
 	}
 	log.Debug("InitiateLogin", "response", resp.String())
 	if resp.Error() != nil {
-		return fmt.Errorf("error: %s", resp.Error().(*loginLinkResponse).Error)
+		return fmt.Errorf("error: %s", resp)
 	}
 	return nil
 }
 
-func LoginWithOtp(username, otp string) error {
+func LoginWithOtp(username, otp string) (string, error) {
 
 	type loginResponse struct {
 		Token string `json:"token"`
@@ -52,9 +105,12 @@ func LoginWithOtp(username, otp string) error {
 		SetResult(&loginResponse{}).
 		Get(fmt.Sprintf("%s/auth/login", Endpoint))
 	if err != nil {
-		return err
+		return "", err
 	}
 	log.Debug("LoginWithOtp", "response", resp.String())
+	if resp.Error() != nil {
+		return "", fmt.Errorf("error: %s", resp)
+	}
 
-	return nil
+	return resp.Result().(*loginResponse).Token, nil
 }

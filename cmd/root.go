@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	// "github.com/joho/godotenv"
@@ -37,26 +38,55 @@ import (
 )
 
 var cfgFile string
+var secretsFile string
+var otp string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "generate-ddg",
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := duckduckgoapi.InitiateLogin(internal.Viper.GetString("duck-address-username"))
-		if err != nil {
-			log.Fatal("Failed to initiate login", "error", err)
+
+		if internal.SecretViper.GetString("token") == "" {
+			if otp == "" {
+				err := duckduckgoapi.InitiateLogin(internal.Viper.GetString("duck-address-username"))
+				if err != nil {
+					log.Fatal("Failed to initiate login", "error", err)
+				}
+				huh.NewInput().
+					Title("One-time passphrase").
+					Value(&otp).
+					Run()
+			} else {
+				log.Info("Using OTP from flag")
+			}
+
+			token, err := duckduckgoapi.LoginWithOtp(internal.Viper.GetString("duck-address-username"), otp)
+			if err != nil {
+				log.Fatal("Failed to login with OTP", "error", err)
+			}
+			log.Info("Successfully logged in with OTP")
+
+			internal.SecretViper.Set("token", token)
+			err = internal.SecretViper.WriteConfig()
+			if err != nil {
+				log.Fatal("Failed to write token to secrets file", "error", err)
+			}
+			log.Info("Token written to secrets file")
 		}
-		var otp string
-		huh.NewInput().
-			Title("One-time passphrase").
-			Value(&otp).
-			Run()
-		err = duckduckgoapi.LoginWithOtp(internal.Viper.GetString("duck-address-username"), otp)
+
+		accessToken, err := duckduckgoapi.GetAccessToken(internal.SecretViper.GetString("token"))
 		if err != nil {
-			log.Fatal("Failed to login with OTP", "error", err)
+			log.Fatal("Failed to get access token", "error", err)
 		}
-		log.Info("Successfully logged in")
+		log.Debug("Access token:", "token", accessToken)
+		log.Info("Logged in")
+
+		email, err := duckduckgoapi.GetEmail(accessToken)
+		if err != nil {
+			log.Fatal("Failed to get email", "error", err)
+		}
+		log.Info("Generated email", "email", fmt.Sprintf("%s@duck.com", email))
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		utils.SetupLogger(internal.Viper.GetString("log-level"))
@@ -76,9 +106,11 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
+	rootCmd.PersistentFlags().StringVar(&secretsFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
+
+	rootCmd.PersistentFlags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
 
 	rootCmd.PersistentFlags().String("log-level", "", "Log level")
 	internal.Viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
@@ -96,11 +128,13 @@ func initConfig() {
 		cfgFile,
 		"generate-ddg/config.yaml",
 		log.Default(),
+		true,
 	)
 	utils.LoadConfig(
 		internal.SecretViper,
 		cfgFile,
 		"generate-ddg/secrets.yaml",
 		log.Default(),
+		false,
 	)
 }
