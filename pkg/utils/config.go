@@ -24,6 +24,9 @@ func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeTo
 			charmLogger.Warn("Failed to load .env file", "error", err)
 		}
 	}
+	// Read in environment variables that match
+	passedViper.AutomaticEnv()
+	passedViper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	if noFile {
 		return nil
@@ -42,10 +45,6 @@ func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeTo
 		}
 		passedViper.SetConfigFile(configPath)
 	}
-
-	// Read in environment variables that match
-	passedViper.AutomaticEnv()
-	passedViper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	usedCfgFile := passedViper.ConfigFileUsed()
 
