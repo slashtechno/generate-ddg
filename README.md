@@ -18,7 +18,19 @@ Go program that allows you to generate DuckDuckGo email aliases from the command
 4. The program will generate a new email alias and print it to the console.  
 
 ### Installation  
-At the moment, the only way to install this program is to clone the repository and build it yourself. This requires you to have Go installed on your system.  
+
+### Binary  
+Download the latest release from the [releases page](https://github.com/slashtechno/generate-ddg/releases), ensuring you download the correct binary for your system.  
+Execute the binary from the command line! Optionally, you can move it to a directory in your PATH.  
+For example, on Linux, if you've downloaded `generate-ddg_linux_amd64` to your Downloads directory:  
+```sh
+mv ~/Downloads/generate-ddg_linux_amd64 /usr/local/bin/generate-ddg
+chmod +x /usr/local/bin/generate-ddg
+generate-ddg # Run it!
+```
+
+#### Building from source  
+Ensure you have Go installed on your system.  
 ```sh
 git clone https://github.com/slashtechno/generate-ddg.git
 cd generate-ddg
