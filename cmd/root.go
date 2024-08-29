@@ -113,7 +113,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&secretsFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
 
 	rootCmd.PersistentFlags().String("log-level", "", "Log level")
@@ -122,8 +122,7 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
 
-	rootCmd.Flags().StringP("duck-address-username", "d", "", "The username in your DuckDuckGo email address (<username>@duck.com)")
-	internal.Viper.BindPFlag("duck-address-username", rootCmd.PersistentFlags().Lookup("duck-address=username"))
+	internal.Viper.SetDefault("duck-address-username", "...")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -134,7 +133,7 @@ func initConfig() {
 		cfgFile,
 		"generate-ddg/config.yaml",
 		log.Default(),
-		true,
+		false,
 	)
 	utils.LoadConfig(
 		internal.SecretViper,

@@ -5,9 +5,10 @@ Go program that allows you to generate DuckDuckGo email aliases from the command
 ![Demo](demo.gif)
 
 ### Setup and Usage
-1. Create a [Duck Address](https://duckduckgo.com/email/) if you don't already have one.  
-2. Either pass in your Duck Address username (the part before the `@duck.com`) as a flag (`--duck-address-username`/`-d`) or set it as an environment variable (`DUCK_ADDRESS_USERNAME`).  
-    - As `.env` is loaded, you can also set it there.
+1. Create a [Duck Address](https://duckduckgo.com/email/) if you don't already have one  
+2. Run `generate-ddg config` to complete the initial setup.
+    - Config key names can also be set as environment variables (capitalized and `-` replaced with `_`)
+    - `.env` is loaded
 3. Run `generate-ddg`  
     - In some cases, this may error if DuckDuckGo suspects you are a bot. If this happens, try to login normally (through DuckDuckGo) and when the magic link/phrase is sent to your email, run the program again with `--otp "<phrase>"`.  
     - The refresh token will be stored in `<XDG_CONFIG_HOME>/generate-ddg/secrets.yaml`. The directory is dependent on your OS:

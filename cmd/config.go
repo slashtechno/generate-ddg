@@ -22,8 +22,11 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
+	"github.com/fatih/color"
 	"github.com/slashtechno/generate-ddg/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,15 +40,25 @@ var configCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		keysToEdit := []KeyToEdit{
-			{key: "token", viperToEdit: internal.SecretViper},
+			{key: "token", title: "DuckDuckGo API token", description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", viperToEdit: internal.SecretViper},
+			{key: "duck-address-username", title: "DuckDuckGo address username", description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", viperToEdit: internal.Viper},
+			{key: "log-level", title: "Log level", description: "The log level to use. Possible values are debug, info, warn, and error.", viperToEdit: internal.Viper},
 		}
 
+		fmt.Printf("To skip editing a key, press %s\nIf you enter a blank value, the key will be set to an empty string\n", color.YellowString("Ctrl+C"))
 		err := EditKeys(keysToEdit)
 		if err != nil {
 			log.Fatal("Failed to edit keys", "error", err)
 		}
 
-		internal.SecretViper.WriteConfig()
+		vipers := []*viper.Viper{internal.SecretViper, internal.Viper}
+		for _, v := range vipers {
+			err = v.WriteConfig()
+			if err != nil {
+				log.Fatal("Failed to write configuration file", "error", err)
+			}
+			log.Infof("Wrote to %s", v.ConfigFileUsed())
+		}
 	},
 }
 
@@ -54,40 +67,55 @@ func init() {
 }
 
 type KeyToEdit struct {
-	key         string
+	// The key in the viper to edit
+	key string
+	// The title to display to the user (defaults to the key)
+	title string
+	// The description to display to the user
+	description string
+	// The viper to edit
 	viperToEdit *viper.Viper
 }
 
 func EditKeys(keys []KeyToEdit) error {
 	for _, key := range keys {
-		value, err := GetValueForKey(key.key)
+		value, err := GetValueForKey(key)
+
 		if err != nil {
+			if err.Error() == "user aborted" {
+				log.Debug("User aborted input")
+				continue
+			}
 			return err
 		}
-		if value == "" {
-			continue
-		}
-
 		key.viperToEdit.Set(key.key, value)
+		log.Debug("Set key", "key", key.key, "value", key.viperToEdit.Get(key.key))
 	}
 	return nil
 }
 
 // Get a new value for a key via huh
-func GetValueForKey(key string) (string, error) {
-	var value string
-	err := huh.NewInput().
-		Title("Edit " + key).
-		Value(&value).
-		Run()
-	if err != nil {
-		if err.Error() == "user aborted" {
-			log.Debug("User aborted input")
-			return "", nil
-		} else {
-			return "", err
-		}
+func GetValueForKey(key KeyToEdit) (string, error) {
+	var value, title string
 
+	huhInput := huh.NewInput().Value(&value)
+
+	if key.title != "" {
+		log.Debug("Using title from key", "key", key.key)
+		title = key.title
+	} else {
+		log.Debug("Using key as title", "key", key.key, "title", key.key)
+		title = key.key
+	}
+	huhInput.Title(title)
+
+	if key.description != "" {
+		huhInput.Description(key.description)
+	}
+
+	err := huhInput.Run()
+	if err != nil {
+		return "", err
 	}
 
 	return value, nil
