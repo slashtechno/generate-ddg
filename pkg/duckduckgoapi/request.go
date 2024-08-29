@@ -1,6 +1,7 @@
 package duckduckgoapi
 
 import (
+	"errors"
 	"fmt"
 
 	"regexp"
@@ -64,7 +65,7 @@ func GetAccessToken(refreshToken string) (string, error) {
 
 func InitiateLogin(username string) error {
 	// TODO: Handle the "rc" error better
-	type loginLinkResponse struct {
+	type returnedError struct {
 		C struct {
 			Ar    int    `json:"ar"`
 			Cp    string `json:"cp"`
@@ -77,15 +78,21 @@ func InitiateLogin(username string) error {
 	resp, err := resty.New().R().
 		SetHeader("User-Agent", UserAgent).
 		SetQueryParam("user", username).
-		SetResult(&loginLinkResponse{}).
-		SetError(&loginLinkResponse{}).
+		SetError(&returnedError{}).
 		Get(fmt.Sprintf("%s/auth/loginlink", Endpoint))
 	if err != nil {
 		return err
 	}
 	log.Debug("InitiateLogin", "response", resp.String())
+
 	if resp.Error() != nil {
-		return fmt.Errorf("error: %s", resp)
+		if resp.Error().(*returnedError).Error == "rc" {
+			return errors.New("rate limited; login via the browser/app and pass the OTP via `--otp`")
+		}
+	} else {
+		if resp.StatusCode() != 200 {
+			return fmt.Errorf("unable to initiate login; try to login via the browser/app and pass the OTP via `--otp`: %s", resp.String())
+		}
 	}
 	return nil
 }

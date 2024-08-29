@@ -53,7 +53,7 @@ func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeTo
 		if charmLogger != nil {
 			// TODO: Allow "config file" to be replaced with a parameter
 			// That way it can be called a secrets file or something else, depending on the use case
-			charmLogger.Info("Loaded file", "path", passedViper.ConfigFileUsed())
+			charmLogger.Debug("Loaded file", "path", passedViper.ConfigFileUsed())
 		}
 	} else {
 		if _, ok := err.(*fs.PathError); ok {
