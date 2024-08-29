@@ -53,10 +53,17 @@ var rootCmd = &cobra.Command{
 				if err != nil {
 					log.Fatal("Failed to initiate login", "error", err)
 				}
-				huh.NewInput().
+				err = huh.NewInput().
 					Title("One-time passphrase").
 					Value(&otp).
 					Run()
+				if err != nil {
+					if err.Error() == "user aborted" {
+						log.Fatal("User aborted")
+					} else {
+						log.Fatal("Failed to get OTP input", "error", err)
+					}
+				}
 			} else {
 				log.Info("Using OTP from flag")
 			}
