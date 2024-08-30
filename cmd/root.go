@@ -43,7 +43,7 @@ var otp string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "generate-ddg",
+	Use:   "generate-ddg [flags]",
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -113,18 +113,16 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
-
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&secretsFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
-
-	rootCmd.PersistentFlags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
 
 	rootCmd.PersistentFlags().String("log-level", "", "Log level")
 	internal.Viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
 	internal.Viper.SetDefault("log-level", "info")
 
-	rootCmd.PersistentFlags().StringP("duck-address-username", "d", "", "The username in your DuckDuckGo email address (<username>@duck.com)")
-	internal.Viper.BindPFlag("duck-address-username", rootCmd.PersistentFlags().Lookup("duck-address=username"))
+	rootCmd.Flags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
+
+	internal.Viper.SetDefault("duck-address-username", "...")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -135,11 +133,11 @@ func initConfig() {
 		cfgFile,
 		"generate-ddg/config.yaml",
 		log.Default(),
-		true,
+		false,
 	)
 	utils.LoadConfig(
 		internal.SecretViper,
-		cfgFile,
+		secretsFile,
 		"generate-ddg/secrets.yaml",
 		log.Default(),
 		false,
