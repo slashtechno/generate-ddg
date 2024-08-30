@@ -22,11 +22,11 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/log"
-	"github.com/fatih/color"
 	"github.com/slashtechno/generate-ddg/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,13 +39,14 @@ var configCmd = &cobra.Command{
 	Long:  `Interactively edit the configuration file.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		keysToEdit := []KeyToEdit{
+		keysToEdit := []*KeyToEdit{
 			{key: "token", title: "DuckDuckGo API token", description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", viperToEdit: internal.SecretViper},
 			{key: "duck-address-username", title: "DuckDuckGo address username", description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", viperToEdit: internal.Viper},
+			// The log level, ideally should be multiple choice
 			{key: "log-level", title: "Log level", description: "The log level to use. Possible values are debug, info, warn, and error.", viperToEdit: internal.Viper},
 		}
 
-		fmt.Printf("To skip editing a key, press %s\nIf you enter a blank value, the key will be set to an empty string\n", color.YellowString("Ctrl+C"))
+		// fmt.Printf("To skip editing a key, press %s\nIf you enter a blank value, the key will be set to an empty string\n", color.YellowString("Ctrl+C"))
 		err := EditKeys(keysToEdit)
 		if err != nil {
 			log.Fatal("Failed to edit keys", "error", err)
@@ -75,30 +76,52 @@ type KeyToEdit struct {
 	description string
 	// The viper to edit
 	viperToEdit *viper.Viper
+	value       *string
 }
 
-func EditKeys(keys []KeyToEdit) error {
+func EditKeys(keys []*KeyToEdit) error {
+	var inputs []huh.Field
 	for _, key := range keys {
-		value, err := GetValueForKey(key)
-
-		if err != nil {
-			if err.Error() == "user aborted" {
-				log.Debug("User aborted input")
-				continue
-			}
-			return err
+		if key.key == "" {
+			return errors.New("key is empty")
 		}
-		key.viperToEdit.Set(key.key, value)
-		log.Debug("Set key", "key", key.key, "value", key.viperToEdit.Get(key.key))
+		if key.viperToEdit == nil {
+			log.Warn("Viper to edit is nil", "key", key.key)
+		}
+		if key.value != nil {
+			log.Warn("Value is not nil; overwriting", "key", key.key)
+		}
+
+		// new() allocates memory for the value
+		key.value = new(string)
+		inputs = append(inputs, GetInputForKey(key))
 	}
+	fmt.Printf("If you enter a blank value, the key will be set to an empty string\n")
+	form := huh.NewForm(huh.NewGroup(inputs...))
+	err := form.Run()
+	if err != nil {
+		// if err.Error() == "user aborted" {
+		// 	return errors.New("user aborted")
+		// }
+		return err
+	}
+
+	for _, key := range keys {
+		if key.key != "" {
+			log.Debug("Setting key", "key", key.key, "value", *key.value)
+			key.viperToEdit.Set(key.key, *key.value)
+		} else {
+			return errors.New("key is empty")
+		}
+	}
+
 	return nil
 }
 
-// Get a new value for a key via huh
-func GetValueForKey(key KeyToEdit) (string, error) {
-	var value, title string
+func GetInputForKey(key *KeyToEdit) *huh.Input {
+	var title string
 
-	huhInput := huh.NewInput().Value(&value)
+	huhInput := huh.NewInput().Value(key.value)
 
 	if key.title != "" {
 		log.Debug("Using title from key", "key", key.key)
@@ -113,10 +136,6 @@ func GetValueForKey(key KeyToEdit) (string, error) {
 		huhInput.Description(key.description)
 	}
 
-	err := huhInput.Run()
-	if err != nil {
-		return "", err
-	}
+	return huhInput
 
-	return value, nil
 }
