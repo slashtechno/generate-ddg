@@ -40,10 +40,18 @@ var configCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		keysToEdit := []*KeyToEdit{
-			{key: "token", title: "DuckDuckGo API token", description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", viperToEdit: internal.SecretViper},
-			{key: "duck-address-username", title: "DuckDuckGo address username", description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", viperToEdit: internal.Viper},
-			// The log level, ideally should be multiple choice
-			{key: "log-level", title: "Log level", description: "The log level to use. Possible values are debug, info, warn, and error.", viperToEdit: internal.Viper},
+			{Key: "token", Title: "DuckDuckGo API token", Description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", ViperToEdit: internal.SecretViper},
+			{Key: "duck-address-username", Title: "DuckDuckGo address username", Description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", ViperToEdit: internal.Viper},
+			{Key: "log-level", Title: "Log level", Description: "The minimum log level to display",
+				ViperToEdit: internal.Viper,
+				// The log level, ideally should be multiple choice
+				Options: []Option{
+					{Display: "Debug", Value: "debug"},
+					{Display: "Info", Value: "info"},
+					{Display: "Warn", Value: "warn"},
+					{Display: "Error", Value: "error"},
+				},
+			},
 		}
 
 		// fmt.Printf("To skip editing a key, press %s\nIf you enter a blank value, the key will be set to an empty string\n", color.YellowString("Ctrl+C"))
@@ -67,34 +75,47 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 }
 
+type Option struct {
+	// The option to display to the user
+	Display string
+	// The value to set if this option is selected
+	Value string
+}
+
 type KeyToEdit struct {
 	// The key in the viper to edit
-	key string
+	Key string
 	// The title to display to the user (defaults to the key)
-	title string
+	Title string
 	// The description to display to the user
-	description string
+	Description string
 	// The viper to edit
-	viperToEdit *viper.Viper
-	value       *string
+	ViperToEdit *viper.Viper
+	// If true, Options will turn into a multiple choice input
+	Options []Option
+	value   *string
 }
 
 func EditKeys(keys []*KeyToEdit) error {
 	var inputs []huh.Field
 	for _, key := range keys {
-		if key.key == "" {
+		if key.Key == "" {
 			return errors.New("key is empty")
 		}
-		if key.viperToEdit == nil {
-			log.Warn("Viper to edit is nil", "key", key.key)
+		if key.ViperToEdit == nil {
+			log.Warn("Viper to edit is nil", "key", key.Key)
 		}
 		if key.value != nil {
-			log.Warn("Value is not nil; overwriting", "key", key.key)
+			log.Warn("Value is not nil; overwriting", "key", key.Key)
 		}
 
 		// new() allocates memory for the value
 		key.value = new(string)
-		inputs = append(inputs, GetInputForKey(key))
+		if key.Options != nil {
+			inputs = append(inputs, GetSelectStringInput(key))
+		} else {
+			inputs = append(inputs, GetInputForKey(key))
+		}
 	}
 	fmt.Printf("If you enter a blank value, the key will be set to an empty string\n")
 	form := huh.NewForm(huh.NewGroup(inputs...))
@@ -107,9 +128,9 @@ func EditKeys(keys []*KeyToEdit) error {
 	}
 
 	for _, key := range keys {
-		if key.key != "" {
-			log.Debug("Setting key", "key", key.key, "value", *key.value)
-			key.viperToEdit.Set(key.key, *key.value)
+		if key.Key != "" {
+			log.Debug("Setting key", "key", key.Key, "value", *key.value)
+			key.ViperToEdit.Set(key.Key, *key.value)
 		} else {
 			return errors.New("key is empty")
 		}
@@ -118,22 +139,47 @@ func EditKeys(keys []*KeyToEdit) error {
 	return nil
 }
 
+func GetSelectStringInput(key *KeyToEdit) *huh.Select[string] {
+	var title string
+
+	var options []huh.Option[string]
+	for _, option := range key.Options {
+		options = append(options, huh.NewOption(option.Display, option.Value))
+	}
+	huhSelect := huh.NewSelect[string]().Options(options...).Value(key.value)
+
+	if key.Title != "" {
+		log.Debug("Using title from key", "key", key.Key)
+		title = key.Title
+	} else {
+		log.Debug("Using key as title", "key", key.Key, "title", key.Key)
+		title = key.Key
+	}
+	huhSelect.Title(title)
+
+	if key.Description != "" {
+		huhSelect.Description(key.Description)
+	}
+
+	return huhSelect
+}
+
 func GetInputForKey(key *KeyToEdit) *huh.Input {
 	var title string
 
 	huhInput := huh.NewInput().Value(key.value)
 
-	if key.title != "" {
-		log.Debug("Using title from key", "key", key.key)
-		title = key.title
+	if key.Title != "" {
+		log.Debug("Using title from key", "key", key.Key)
+		title = key.Title
 	} else {
-		log.Debug("Using key as title", "key", key.key, "title", key.key)
-		title = key.key
+		log.Debug("Using key as title", "key", key.Key, "title", key.Key)
+		title = key.Key
 	}
 	huhInput.Title(title)
 
-	if key.description != "" {
-		huhInput.Description(key.description)
+	if key.Description != "" {
+		huhInput.Description(key.Description)
 	}
 
 	return huhInput

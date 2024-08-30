@@ -137,7 +137,7 @@ func initConfig() {
 	)
 	utils.LoadConfig(
 		internal.SecretViper,
-		cfgFile,
+		secretsFile,
 		"generate-ddg/secrets.yaml",
 		log.Default(),
 		false,

@@ -16,7 +16,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
-            "args": ["config", "--config", "testing.config.yaml", "--secrets", "testing.secrets.yaml"],
+            "args": ["--log-level", "debug", "config", "--config", "testing.config.yaml", "--secrets", "testing.secrets.yaml"],
             "console": "integratedTerminal",
             
         },
