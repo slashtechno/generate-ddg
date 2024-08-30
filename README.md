@@ -11,7 +11,7 @@ Go program that allows you to generate DuckDuckGo email aliases from the command
     - `.env` is loaded
 3. Run `generate-ddg`  
     - In some cases, this may error if DuckDuckGo suspects you are a bot. If this happens, try to login normally (through DuckDuckGo) and when the magic link/phrase is sent to your email, run the program again with `--otp "<phrase>"`.  
-    - The refresh token will be stored in `<XDG_CONFIG_HOME>/generate-ddg/secrets.yaml`. The directory is dependent on your OS:
+    - The config files will be stored in `<XDG_CONFIG_HOME>/generate-ddg/`. The directory is dependent on your OS:
         - Linux: `~/.config/generate-ddg.
         - Windows: `%APPDATA%\generate-ddg`
         - MacOS: `~/Library/Application Support/generate-ddg`
