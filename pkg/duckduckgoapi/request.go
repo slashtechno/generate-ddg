@@ -26,8 +26,8 @@ func GetEmail(accessToken string) (string, error) {
 	}
 
 	log.Debug("GetEmail", "response", resp.String())
-	if resp.Error() != nil {
-		return "", fmt.Errorf("error: %s", resp)
+	if resp.StatusCode() != 201 {
+		return "", fmt.Errorf("error: %s; status code: %d", resp.String(), resp.StatusCode())
 	}
 
 	return resp.Result().(*emailResponse).Address, nil
@@ -56,8 +56,8 @@ func GetAccessToken(refreshToken string) (string, error) {
 	}
 
 	log.Debug("GetAccessToken", "response", resp.String())
-	if resp.Error() != nil {
-		return "", fmt.Errorf("error: %s", resp)
+	if resp.StatusCode() != 200 {
+		return "", fmt.Errorf("error: %s; status code: %d", resp.String(), resp.StatusCode())
 	}
 
 	return resp.Result().(*accessTokenResponse).User.AccessToken, nil
@@ -116,7 +116,7 @@ func LoginWithOtp(username, otp string) (string, error) {
 	}
 	log.Debug("LoginWithOtp", "response", resp.String())
 	if resp.Error() != nil {
-		return "", fmt.Errorf("error: %s", resp)
+		return "", fmt.Errorf("error: %s; status code: %d", resp.String(), resp.StatusCode())
 	}
 
 	return resp.Result().(*loginResponse).Token, nil

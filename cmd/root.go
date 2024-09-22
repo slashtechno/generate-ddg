@@ -46,7 +46,9 @@ var rootCmd = &cobra.Command{
 	Use:   "generate-ddg [flags]",
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
-
+		if internal.Viper.GetString("duck-address-username") == "" {
+			log.Fatal("DuckDuckGo address username not set")
+		}
 		if internal.SecretViper.GetString("token") == "" {
 			if otp == "" {
 				err := duckduckgoapi.InitiateLogin(internal.Viper.GetString("duck-address-username"))
@@ -93,7 +95,8 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to get email", "error", err)
 		}
-		log.Info("Generated email", "email", fmt.Sprintf("%s@duck.com", email))
+		// log.Debug("Generated email", "email", fmt.Sprintf("%s@duck.com", email))
+		fmt.Printf("%s@duck.com\n", email)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		utils.SetupLogger(internal.Viper.GetString("log-level"))

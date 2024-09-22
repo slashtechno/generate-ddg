@@ -16,6 +16,16 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
+            "args": ["--log-level", "debug", "config"],
+            "console": "integratedTerminal",
+            
+        },
+        {
+            "name": "Test config",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
             "args": ["--log-level", "debug", "config", "--config", "testing.config.yaml", "--secrets", "testing.secrets.yaml"],
             "console": "integratedTerminal",
             
