@@ -47,7 +47,9 @@ var rootCmd = &cobra.Command{
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
 		if internal.Viper.GetString("duck-address-username") == "" {
-			log.Fatal("DuckDuckGo address username not set")
+			log.Fatalf("DuckDuckGo address username not set -- please run \"%s config\" or set/pass the username", os.Args[0])
+		} else {
+			log.Info("DuckDuckGo address username", "username", internal.Viper.GetString("duck-address-username"))
 		}
 		if internal.SecretViper.GetString("token") == "" {
 			if otp == "" {
@@ -125,7 +127,7 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
 
-	internal.Viper.SetDefault("duck-address-username", "...")
+	// internal.Viper.SetDefault("duck-address-username", "")
 }
 
 // initConfig reads in config file and ENV variables if set.
