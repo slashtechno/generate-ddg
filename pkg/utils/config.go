@@ -21,7 +21,8 @@ func LoadConfig(passedViper *viper.Viper, userPassedConfigPath, configRelativeTo
 	err := godotenv.Load()
 	if err != nil {
 		if charmLogger != nil {
-			charmLogger.Warn("Failed to load .env file", "error", err)
+			// This is a debug since most of the time, the .env file will not be present
+			charmLogger.Debug("Failed to load .env file", "error", err)
 		}
 	}
 	// Read in environment variables that match

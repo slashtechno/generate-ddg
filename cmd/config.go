@@ -71,8 +71,43 @@ var configCmd = &cobra.Command{
 	},
 }
 
+var showConfigCmd = &cobra.Command{
+	Use:   "show",
+	Short: "Show the configuration values, including secrets",
+	Long:  `Show the configuration values, including secrets`,
+	Run: func(cmd *cobra.Command, args []string) {
+
+		keys := struct {
+			DuckAddressUsername  string `mapstructure:"duck-address-username"`
+			Token                string `mapstructure:"token"`
+			LogLevel             string `mapstructure:"log-level"`
+			ConfigFileUsed       string
+			SecretConfigFileUsed string
+		}{}
+
+		err := internal.Viper.Unmarshal(&keys)
+		if err != nil {
+			log.Fatal("Failed to unmarshal configuration", "error", err)
+		}
+		err = internal.SecretViper.Unmarshal(&keys)
+		if err != nil {
+			log.Fatal("Failed to unmarshal secret configuration", "error", err)
+		}
+
+		log.Info("Configuration values read successfully", "config-file-used", internal.Viper.ConfigFileUsed(), "secret-config-file-used", internal.SecretViper.ConfigFileUsed(), "duck-address-username", keys.DuckAddressUsername, "token", keys.Token, "log-level", keys.LogLevel)
+		// fmt.Println("Configuration values:")
+		// fmt.Println("Config file used:", internal.Viper.ConfigFileUsed())
+		// fmt.Println("Secret config file used:", internal.SecretViper.ConfigFileUsed())
+		// fmt.Println("DuckDuckGo address username:", internal.Viper.GetString("duck-address-username"))
+		// fmt.Println("DuckDuckGo API token:", internal.SecretViper.GetString("token"))
+		// fmt.Println("Log level:", internal.Viper.GetString("log-level"))
+
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(showConfigCmd)
 }
 
 type Option struct {
