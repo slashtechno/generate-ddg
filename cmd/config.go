@@ -41,6 +41,8 @@ var configCmd = &cobra.Command{
 
 		keysToEdit := []*KeyToEdit{
 			{Key: "token", Title: "DuckDuckGo API token", Description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", ViperToEdit: internal.SecretViper},
+			{Key: "jwt-secret", Title: "JWT signing secret", Description: "Secret used to sign and verify web UI session tokens. Generate one with `openssl rand -hex 32`. Changing this invalidates all existing sessions.", ViperToEdit: internal.SecretViper},
+			{Key: "web-password", Title: "Web UI password", Description: "Password required to log in to the web UI.", ViperToEdit: internal.SecretViper},
 			{Key: "duck-address-username", Title: "DuckDuckGo address username", Description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", ViperToEdit: internal.Viper},
 			{Key: "log-level", Title: "Log level", Description: "The minimum log level to display",
 				ViperToEdit: internal.Viper,
@@ -80,6 +82,8 @@ var showConfigCmd = &cobra.Command{
 		keys := struct {
 			DuckAddressUsername  string `mapstructure:"duck-address-username"`
 			Token                string `mapstructure:"token"`
+			JwtSecret            string `mapstructure:"jwt-secret"`
+			WebPassword          string `mapstructure:"web-password"`
 			LogLevel             string `mapstructure:"log-level"`
 			ConfigFileUsed       string
 			SecretConfigFileUsed string
@@ -94,7 +98,7 @@ var showConfigCmd = &cobra.Command{
 			log.Fatal("Failed to unmarshal secret configuration", "error", err)
 		}
 
-		log.Info("Configuration values read successfully", "config-file-used", internal.Viper.ConfigFileUsed(), "secret-config-file-used", internal.SecretViper.ConfigFileUsed(), "duck-address-username", keys.DuckAddressUsername, "token", keys.Token, "log-level", keys.LogLevel)
+		log.Info("Configuration values read successfully", "config-file-used", internal.Viper.ConfigFileUsed(), "secret-config-file-used", internal.SecretViper.ConfigFileUsed(), "duck-address-username", keys.DuckAddressUsername, "token", keys.Token, "jwt-secret", keys.JwtSecret, "web-password", keys.WebPassword, "log-level", keys.LogLevel)
 		// fmt.Println("Configuration values:")
 		// fmt.Println("Config file used:", internal.Viper.ConfigFileUsed())
 		// fmt.Println("Secret config file used:", internal.SecretViper.ConfigFileUsed())

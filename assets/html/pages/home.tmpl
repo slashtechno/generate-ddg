@@ -1,7 +1,24 @@
 {{define "page:title"}}Home{{end}}
 
 {{define "page:content"}}
-<button hx-get="/gopher" hx-swap="outerHTML">
+<!--  outerHTML: replace the element itself (the button) with the response from the server (the gopher image) -->
+<p>
+<button hx-get="/app/gopher" hx-swap="outerHTML">
 Wanna see a cute gopher?
 </button>
+</p>
+{{template "page:login" .}}
+{{end}}
+{{define "page:login"}}
+<p>
+{{if .Authed}}
+<button hx-get="/app/logout" hx-swap="outerHTML">Logout</button>
+{{else}}
+<!-- By default, an element that causes a request will include its value if it has one. If the element is a form it will include the values of all inputs within it. (https://htmx.org/docs/#parameters) -->
+<form hx-post="/login" hx-swap="outerHTML">
+<input type="password" name="password" placeholder="Password">
+<button type="submit">Login</button>
+</form>
+{{end}}
+</p>
 {{end}}

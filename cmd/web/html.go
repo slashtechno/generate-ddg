@@ -13,6 +13,21 @@ type htmlRenderer struct {
 	sharedTemplates *template.Template
 }
 
+type templateData[TPage any] struct {
+	Authed bool
+	Page   TPage
+}
+
+// Eventually, if we want multiple type parameters:
+// type templateData[TPage any, TFlash any] struct {
+//     Authed bool
+//     Page   TPage
+//     Flash  TFlash
+// }
+
+// seems you can't use a generic in a const
+var noTemplateData templateData[struct{}] = templateData[struct{}]{}
+
 // The newHTMLRenderer function creates a new htmlRenderer containing a shared
 // set of parsed templates with support for any custom template functions.
 func newHTMLRenderer(templateFS fs.FS, sharedTemplateFiles ...string) (*htmlRenderer, error) {
@@ -37,8 +52,10 @@ func newHTMLRenderer(templateFS fs.FS, sharedTemplateFiles ...string) (*htmlRend
 // The render method clones the shared template set, optionally parses additional
 // templates, executes the named template with the supplied data, and writes the
 // response.
-// example call: 	err := app.html.render(w, 200, nil, "base", "pages/home.tmpl")
-func (h *htmlRenderer) render(w http.ResponseWriter, status int, data any, templateName string, additionalTemplateFiles ...string) error {
+
+// No longer a method since otherwise we can't use the generic
+// func (h *htmlRenderer) render[Tpage any](w http.ResponseWriter, status int, data templateData[Tpage], templateName string, additionalTemplateFiles ...string) error {
+func render[Tpage any](h *htmlRenderer, w http.ResponseWriter, r *http.Request, status int, data templateData[Tpage], templateName string, additionalTemplateFiles ...string) error {
 	ts, err := h.sharedTemplates.Clone()
 	if err != nil {
 		return err
@@ -51,8 +68,11 @@ func (h *htmlRenderer) render(w http.ResponseWriter, status int, data any, templ
 		}
 	}
 
-	buf := new(bytes.Buffer)
+	authed, _ := r.Context().Value(authedContextKey).(bool)
 
+	buf := new(bytes.Buffer)
+	// Execute the named template, passing in any dynamic data, and write to a buffer.
+	data.Authed = authed
 	err = ts.ExecuteTemplate(buf, templateName, data)
 	if err != nil {
 		return err
