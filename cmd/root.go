@@ -33,6 +33,7 @@ import (
 	"github.com/slashtechno/generate-ddg/pkg/duckduckgoapi"
 	"github.com/slashtechno/generate-ddg/pkg/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/charmbracelet/huh"
 )
@@ -46,14 +47,14 @@ var rootCmd = &cobra.Command{
 	Use:   "generate-ddg [flags]",
 	Short: "Generate DuckDuckGo email addresses from the command line",
 	Run: func(cmd *cobra.Command, args []string) {
-		if internal.Viper.GetString("duck-address-username") == "" {
+		if internal.DuckAddressUsername.Get() == "" {
 			log.Fatalf("DuckDuckGo address username not set -- please run \"%s config\" or set/pass the username", os.Args[0])
 		} else {
-			log.Info("DuckDuckGo address username", "username", internal.Viper.GetString("duck-address-username"))
+			log.Info("DuckDuckGo address username", "username", internal.DuckAddressUsername.Get())
 		}
-		if internal.SecretViper.GetString("token") == "" {
+		if internal.Token.Get() == "" {
 			if otp == "" {
-				err := duckduckgoapi.InitiateLogin(internal.Viper.GetString("duck-address-username"))
+				err := duckduckgoapi.InitiateLogin(internal.DuckAddressUsername.Get())
 				if err != nil {
 					log.Fatal("Failed to initiate login", "error", err)
 				}
@@ -72,13 +73,13 @@ var rootCmd = &cobra.Command{
 				log.Info("Using OTP from flag")
 			}
 
-			token, err := duckduckgoapi.LoginWithOtp(internal.Viper.GetString("duck-address-username"), otp)
+			token, err := duckduckgoapi.LoginWithOtp(internal.DuckAddressUsername.Get(), otp)
 			if err != nil {
 				log.Fatal("Failed to login with OTP", "error", err)
 			}
 			log.Info("Successfully logged in with OTP")
 
-			internal.SecretViper.Set("token", token)
+			internal.Token.Set(token)
 			err = internal.SecretViper.WriteConfig()
 			if err != nil {
 				log.Fatal("Failed to write token to secrets file", "error", err)
@@ -86,7 +87,7 @@ var rootCmd = &cobra.Command{
 			log.Info("Token written to secrets file")
 		}
 
-		accessToken, err := duckduckgoapi.GetAccessToken(internal.SecretViper.GetString("token"))
+		accessToken, err := duckduckgoapi.GetAccessToken(internal.Token.Get())
 		if err != nil {
 			log.Fatal("Failed to get access token", "error", err)
 		}
@@ -101,7 +102,7 @@ var rootCmd = &cobra.Command{
 		fmt.Printf("%s@duck.com\n", email)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		utils.SetupLogger(internal.Viper.GetString("log-level"))
+		utils.SetupLogger(internal.LogLevel.Get())
 		return nil
 	},
 }
@@ -121,30 +122,24 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default is $XDG_CONFIG_HOME/generate-ddg/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&secretsFile, "secrets", "", "Secrets file (default is $XDG_CONFIG_HOME/generate-ddg/secrets.yaml). This file will have the token written to it if it's not passed via an environment variable.")
 
-	rootCmd.PersistentFlags().String("log-level", "", "Log level")
-	internal.Viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
-	internal.Viper.SetDefault("log-level", "info")
+	rootCmd.PersistentFlags().String(internal.LogLevel.Key, "", "Log level")
+	internal.Viper.BindPFlag(internal.LogLevel.Key, rootCmd.PersistentFlags().Lookup(internal.LogLevel.Key))
+	internal.ApplyDefaults()
 
 	rootCmd.Flags().StringVarP(&otp, "otp", "o", "", "One-time passphrase")
-
-	// internal.Viper.SetDefault("duck-address-username", "")
 }
 
-// initConfig reads in config file and ENV variables if set.
+// initConfig reads in config files and ENV variables if set.
 func initConfig() {
-
-	utils.LoadConfig(
-		internal.Viper,
-		cfgFile,
-		"generate-ddg/config.yaml",
-		log.Default(),
-		false,
-	)
-	utils.LoadConfig(
-		internal.SecretViper,
-		secretsFile,
-		"generate-ddg/secrets.yaml",
-		log.Default(),
-		false,
-	)
+	configs := []struct {
+		viper       *viper.Viper
+		file        string
+		defaultName string
+	}{
+		{internal.Viper, cfgFile, "generate-ddg/config.yaml"},
+		{internal.SecretViper, secretsFile, "generate-ddg/secrets.yaml"},
+	}
+	for _, c := range configs {
+		utils.LoadConfig(c.viper, c.file, c.defaultName, log.Default(), false)
+	}
 }

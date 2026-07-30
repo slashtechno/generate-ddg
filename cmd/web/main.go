@@ -30,13 +30,13 @@ func Main() {
 		os.Exit(1)
 	}
 
-	jwtSecret := internal.SecretViper.GetString("jwt-secret")
+	jwtSecret := internal.JwtSecret.Get()
 	if jwtSecret == "" {
 		logger.Error("jwt-secret is not set; run \"generate-ddg config\" or set it in the secrets file/environment")
 		os.Exit(1)
 	}
 
-	password := internal.SecretViper.GetString("web-password")
+	password := internal.WebPassword.Get()
 	if password == "" {
 		logger.Error("web-password is not set; run \"generate-ddg config\" or set it in the secrets file/environment")
 		os.Exit(1)

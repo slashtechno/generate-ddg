@@ -32,32 +32,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+// fieldEdit pairs a ConfigField with the huh form's live edit buffer for it,
+// pre-seeded from the field's current value so unedited fields round-trip
+// instead of being wiped to "".
+type fieldEdit struct {
+	Field *internal.ConfigField
+	Value string
+}
+
 // configCmd represents the config command
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Edit the configuration file",
 	Long:  `Interactively edit the configuration file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		keysToEdit := []*KeyToEdit{
-			{Key: "token", Title: "DuckDuckGo API token", Description: "Your DuckDuckGo API token. If not set now, the login process will start the first time the program is run. The token will then be stored in the secrets file.", ViperToEdit: internal.SecretViper},
-			{Key: "jwt-secret", Title: "JWT signing secret", Description: "Secret used to sign and verify web UI session tokens. Generate one with `openssl rand -hex 32`. Changing this invalidates all existing sessions.", ViperToEdit: internal.SecretViper},
-			{Key: "web-password", Title: "Web UI password", Description: "Password required to log in to the web UI.", ViperToEdit: internal.SecretViper},
-			{Key: "duck-address-username", Title: "DuckDuckGo address username", Description: "Your DuckDuckGo address username. This is the part before the @duck.com in your email address.", ViperToEdit: internal.Viper},
-			{Key: "log-level", Title: "Log level", Description: "The minimum log level to display",
-				ViperToEdit: internal.Viper,
-				// The log level, ideally should be multiple choice
-				Options: []Option{
-					{Display: "Debug", Value: "debug"},
-					{Display: "Info", Value: "info"},
-					{Display: "Warn", Value: "warn"},
-					{Display: "Error", Value: "error"},
-				},
-			},
-		}
-
-		// fmt.Printf("To skip editing a key, press %s\nIf you enter a blank value, the key will be set to an empty string\n", color.YellowString("Ctrl+C"))
-		err := EditKeys(keysToEdit)
+		err := EditKeys(internal.ConfigFields)
 		if err != nil {
 			log.Fatal("Failed to edit keys", "error", err)
 		}
@@ -78,34 +67,11 @@ var showConfigCmd = &cobra.Command{
 	Short: "Show the configuration values, including secrets",
 	Long:  `Show the configuration values, including secrets`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		keys := struct {
-			DuckAddressUsername  string `mapstructure:"duck-address-username"`
-			Token                string `mapstructure:"token"`
-			JwtSecret            string `mapstructure:"jwt-secret"`
-			WebPassword          string `mapstructure:"web-password"`
-			LogLevel             string `mapstructure:"log-level"`
-			ConfigFileUsed       string
-			SecretConfigFileUsed string
-		}{}
-
-		err := internal.Viper.Unmarshal(&keys)
-		if err != nil {
-			log.Fatal("Failed to unmarshal configuration", "error", err)
+		args2 := []interface{}{"config-file-used", internal.Viper.ConfigFileUsed(), "secret-config-file-used", internal.SecretViper.ConfigFileUsed()}
+		for _, f := range internal.ConfigFields {
+			args2 = append(args2, f.Key, f.Viper.GetString(f.Key))
 		}
-		err = internal.SecretViper.Unmarshal(&keys)
-		if err != nil {
-			log.Fatal("Failed to unmarshal secret configuration", "error", err)
-		}
-
-		log.Info("Configuration values read successfully", "config-file-used", internal.Viper.ConfigFileUsed(), "secret-config-file-used", internal.SecretViper.ConfigFileUsed(), "duck-address-username", keys.DuckAddressUsername, "token", keys.Token, "jwt-secret", keys.JwtSecret, "web-password", keys.WebPassword, "log-level", keys.LogLevel)
-		// fmt.Println("Configuration values:")
-		// fmt.Println("Config file used:", internal.Viper.ConfigFileUsed())
-		// fmt.Println("Secret config file used:", internal.SecretViper.ConfigFileUsed())
-		// fmt.Println("DuckDuckGo address username:", internal.Viper.GetString("duck-address-username"))
-		// fmt.Println("DuckDuckGo API token:", internal.SecretViper.GetString("token"))
-		// fmt.Println("Log level:", internal.Viper.GetString("log-level"))
-
+		log.Info("Configuration values read successfully", args2...)
 	},
 }
 
@@ -114,49 +80,28 @@ func init() {
 	configCmd.AddCommand(showConfigCmd)
 }
 
-type Option struct {
-	// The option to display to the user
-	Display string
-	// The value to set if this option is selected
-	Value string
-}
-
-type KeyToEdit struct {
-	// The key in the viper to edit
-	Key string
-	// The title to display to the user (defaults to the key)
-	Title string
-	// The description to display to the user
-	Description string
-	// The viper to edit
-	ViperToEdit *viper.Viper
-	// If true, Options will turn into a multiple choice input
-	Options []Option
-	value   *string
-}
-
-func EditKeys(keys []*KeyToEdit) error {
+func EditKeys(fields []*internal.ConfigField) error {
 	var inputs []huh.Field
-	for _, key := range keys {
-		if key.Key == "" {
+	edits := make([]*fieldEdit, 0, len(fields))
+	for _, field := range fields {
+		if field.Key == "" {
 			return errors.New("key is empty")
 		}
-		if key.ViperToEdit == nil {
-			log.Warn("Viper to edit is nil", "key", key.Key)
-		}
-		if key.value != nil {
-			log.Warn("Value is not nil; overwriting", "key", key.Key)
+		if field.Viper == nil {
+			log.Warn("Viper to edit is nil", "key", field.Key)
 		}
 
-		// new() allocates memory for the value
-		key.value = new(string)
-		if key.Options != nil {
-			inputs = append(inputs, GetSelectStringInput(key))
+		// Seed from the current value so unedited fields round-trip
+		// instead of being blanked out.
+		edit := &fieldEdit{Field: field, Value: field.Viper.GetString(field.Key)}
+		edits = append(edits, edit)
+		if field.Options != nil {
+			inputs = append(inputs, GetSelectStringInput(edit))
 		} else {
-			inputs = append(inputs, GetInputForKey(key))
+			inputs = append(inputs, GetInputForKey(edit))
 		}
 	}
-	fmt.Printf("If you enter a blank value, the key will be set to an empty string\n")
+	fmt.Printf("Existing values are pre-filled; clear a field to set it to an empty string\n")
 	form := huh.NewForm(huh.NewGroup(inputs...))
 	err := form.Run()
 	if err != nil {
@@ -166,61 +111,37 @@ func EditKeys(keys []*KeyToEdit) error {
 		return err
 	}
 
-	for _, key := range keys {
-		if key.Key != "" {
-			log.Debug("Setting key", "key", key.Key, "value", *key.value)
-			key.ViperToEdit.Set(key.Key, *key.value)
-		} else {
-			return errors.New("key is empty")
-		}
+	for _, edit := range edits {
+		log.Debug("Setting key", "key", edit.Field.Key, "value", edit.Value)
+		edit.Field.Viper.Set(edit.Field.Key, edit.Value)
 	}
 
 	return nil
 }
 
-func GetSelectStringInput(key *KeyToEdit) *huh.Select[string] {
-	var title string
-
-	var options []huh.Option[string]
-	for _, option := range key.Options {
-		options = append(options, huh.NewOption(option.Display, option.Value))
+// titledField sets the title and, if present, description on any huh field
+// builder whose fluent methods return its own concrete type.
+func titledField[T interface {
+	Title(string) T
+	Description(string) T
+}](field T, config *internal.ConfigField) T {
+	field = field.Title(config.ResolvedTitle())
+	if config.Description != "" {
+		field = field.Description(config.Description)
 	}
-	huhSelect := huh.NewSelect[string]().Options(options...).Value(key.value)
-
-	if key.Title != "" {
-		log.Debug("Using title from key", "key", key.Key)
-		title = key.Title
-	} else {
-		log.Debug("Using key as title", "key", key.Key, "title", key.Key)
-		title = key.Key
-	}
-	huhSelect.Title(title)
-
-	if key.Description != "" {
-		huhSelect.Description(key.Description)
-	}
-
-	return huhSelect
+	return field
 }
 
-func GetInputForKey(key *KeyToEdit) *huh.Input {
-	var title string
-
-	huhInput := huh.NewInput().Value(key.value)
-
-	if key.Title != "" {
-		log.Debug("Using title from key", "key", key.Key)
-		title = key.Title
-	} else {
-		log.Debug("Using key as title", "key", key.Key, "title", key.Key)
-		title = key.Key
+func GetSelectStringInput(edit *fieldEdit) *huh.Select[string] {
+	var options []huh.Option[string]
+	for _, option := range edit.Field.Options {
+		options = append(options, huh.NewOption(option.Display, option.Value))
 	}
-	huhInput.Title(title)
+	huhSelect := huh.NewSelect[string]().Options(options...).Value(&edit.Value)
+	return titledField(huhSelect, edit.Field)
+}
 
-	if key.Description != "" {
-		huhInput.Description(key.Description)
-	}
-
-	return huhInput
-
+func GetInputForKey(edit *fieldEdit) *huh.Input {
+	huhInput := huh.NewInput().Value(&edit.Value)
+	return titledField(huhInput, edit.Field)
 }
